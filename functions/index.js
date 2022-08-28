@@ -1,12 +1,58 @@
+require("dotenv").config({
+  path: "../.env"
+});
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 admin.initializeApp();
+const TwitterApi = require("twitter-api-v2").default;
 
-// const dbReference = admin.firestore().doc.apply("tokens");
-// const callBackURL = "http://127.0.0.1:5000/tech-in-twitter/us-central1/callback";
+const twitterClient = new TwitterApi({
+  clientId: process.env.TWITTER_API_KEY,
+  clientSecret: process.env.TWITTER_API_SECRET,
+});
 
-exports.auth = functions.https.onRequest((req, res) => {});
+const dbReference = admin.firestore().doc("tokens/demo");
+const callBackURL = "http://127.0.0.1:5000/tech-in-twitter/us-central1/callback";
 
-exports.callback = functions.https.onRequest((req, res) => {});
+exports.auth = functions.https.onRequest(async (req, res) => {
+  try {
+    // eslint-disable-next-line max-len
+    const { url, codeVerifier, state } = twitterClient.generateOAuth2AuthLink(callBackURL, {
+      scope: ["tweet.read", "tweet.write", "users.read", "offline.access"],
+    });
+    // console.log(url);
+
+    // store in DB
+    await dbReference.set({ codeVerifier, state });
+
+    res.redirect(url);
+  } catch (error) {
+    console.log(error);
+  }
+});
+
+exports.callback = functions.https.onRequest(async (req, res) => {
+  const { state, code } = req.query;
+  const dbSnap = await dbReference.get();
+  const { codeVerifier, state: storedState } = dbSnap.data();
+
+  if (state !== storedState) return res.status(400).json({
+    success: "false",
+    message: "Stored tokens do not match!"
+  });
+
+  const {
+    client: loggedClient,
+    accessToken,
+    refreshToken,
+  } = await twitterClient.loginWithOAuth2({
+    code,
+    codeVerifier,
+    redirectUri: callBackURL,
+  });
+
+  await dbReference.set({ accessToken, refreshToken });
+  res.status(200).json({ success: true });
+});
 
 exports.tweet = functions.https.onRequest((req, res) => {});
