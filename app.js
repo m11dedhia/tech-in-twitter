@@ -24,7 +24,7 @@ const openai = new OpenAIApi(config);
 const dbReference = admin.firestore().doc("tokens/demo");
 const callBackURL = "http://127.0.0.1:5000/tech-in-twitter/us-central1/callback";
 
-cron.schedule('*/1 * * * *', async () => {
+cron.schedule('*/30 * * * *', async () => {
   try {
     const db = await dbReference.get();
     const { refreshToken } = db.data();
@@ -44,7 +44,7 @@ cron.schedule('*/1 * * * *', async () => {
     });
     
     const { data } = await refereshedClient.v2.tweet(tweet.data.choices[0].text);
-    console.log('tweet sent');
+    console.log(`${new Date()}: tweet sent`);
     // res.status(200).send(data);
   } catch (error) {
     console.log(error);
