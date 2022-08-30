@@ -8,6 +8,7 @@ module.exports = {
     "eslint:recommended",
     "google",
   ],
+  strict: "off",
   rules: {
     quotes: ["error", "double"],
   },
